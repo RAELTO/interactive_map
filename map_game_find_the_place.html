@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Game: Find the Place</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --panel:#ffffff;
+    --ink:#172033;
+    --muted:#64748b;
+    --border:#dbe3ee;
+    --road:#cbd5e1;
+    --road-line:#ffffff;
+    --block:#e9f5e9;
+    --building:#fff7dd;
+    --building-stroke:#c8a951;
+    --accent:#2563eb;
+    --accent-soft:#dbeafe;
+    --route:#dc2626;
+    --green:#15803d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--ink);
+    background:linear-gradient(180deg,#eef4ff 0%,var(--bg) 34%);
+  }
+  .page{
+    width:min(1180px,calc(100% - 28px));
+    margin:28px auto 50px;
+  }
+  header{
+    margin-bottom:18px;
+  }
+  h1{
+    margin:0 0 6px;
+    font-size:clamp(1.8rem,3vw,2.8rem);
+  }
+  .subtitle{margin:0;color:var(--muted);font-size:1rem}
+  .layout{
+    display:grid;
+    grid-template-columns:minmax(0,1.7fr) minmax(290px,.8fr);
+    gap:18px;
+    align-items:start;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+    overflow:hidden;
+  }
+  .map-wrap{padding:14px}
+  .map-shell{
+    background:#eef8ec;
+    border:1px solid #cfe1ce;
+    border-radius:16px;
+    overflow:hidden;
+  }
+  svg{display:block;width:100%;height:auto}
+  .road{fill:var(--road)}
+  .lane{stroke:var(--road-line);stroke-width:3;stroke-dasharray:12 14;opacity:.9}
+  .street-label{
+    fill:#475569;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:.4px;
+  }
+  .building rect{
+    fill:var(--building);
+    stroke:var(--building-stroke);
+    stroke-width:2;
+    rx:12;
+    transition:.18s ease;
+  }
+  .building text{
+    fill:#263244;
+    font-size:14px;
+    font-weight:700;
+    text-anchor:middle;
+    pointer-events:none;
+  }
+  .building:hover rect,
+  .building:focus rect{
+    fill:#ffefb7;
+    stroke:#8a6d16;
+    stroke-width:3;
+  }
+  .building{cursor:pointer;outline:none}
+  .home rect{fill:#e0ecff;stroke:#5b7fc7}
+  .park rect{fill:#d8f3dc;stroke:#4b9b5a}
+  .landmark-label{font-size:12px;font-weight:700;fill:#334155}
+  .route-line{
+    fill:none;
+    stroke:var(--route);
+    stroke-width:8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    filter:drop-shadow(0 2px 1px rgba(0,0,0,.16));
+  }
+  .route-dot{fill:var(--route);stroke:white;stroke-width:3}
+  .side{display:grid;gap:18px}
+  .section{padding:18px}
+  .section h2{margin:0 0 10px;font-size:1.05rem}
+  .section p{margin:0;color:var(--muted);line-height:1.55}
+  .routes{
+    display:grid;
+    gap:8px;
+    margin-top:12px;
+  }
+  .route-btn{
+    width:100%;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:#fff;
+    color:var(--ink);
+    padding:10px 12px;
+    text-align:left;
+    cursor:pointer;
+    font-weight:700;
+    transition:.16s ease;
+  }
+  .route-btn:hover{border-color:#9fb4d1;background:#f8fbff}
+  .route-btn.active{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+    color:#153f91;
+  }
+  .route-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+    font-weight:800;
+  }
+  .badge{
+    width:28px;height:28px;border-radius:999px;
+    background:var(--accent);color:white;
+    display:inline-grid;place-items:center;
+    font-size:.85rem;flex:0 0 auto;
+  }
+  .route-text{color:#334155!important}
+  .place-card{
+    margin-top:12px;
+    padding:12px;
+    background:#f8fafc;
+    border:1px dashed #bfd0e3;
+    border-radius:12px;
+  }
+  .place-card strong{display:block;margin-bottom:4px}
+  .audio-box{
+    display:grid;
+    gap:10px;
+    margin-top:12px;
+  }
+  audio{width:100%}
+  .file-label{
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:9px 10px;
+    cursor:pointer;
+    background:#fff;
+    font-weight:700;
+  }
+  .file-label input{display:none}
+  .note{font-size:.88rem!important}
+  .neighborhood{
+    margin-top:18px;
+    padding:18px;
+  }
+  .neighborhood h2{margin:0 0 10px}
+  .neighborhood p{line-height:1.7;margin:0;color:#334155}
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 14px;
+    padding:0 14px 14px;
+    color:#475569;
+    font-size:.9rem;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .swatch{width:16px;height:10px;border-radius:3px;display:inline-block}
+  .sw-building{background:var(--building);border:1px solid var(--building-stroke)}
+  .sw-park{background:#d8f3dc;border:1px solid #4b9b5a}
+  .sw-route{background:var(--route)}
+  footer{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:.87rem;
+    text-align:center;
+  }
+  @media(max-width:900px){
+    .layout{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Map Game: Find the Place</h1>
+    <p class="subtitle">Interactive fictional neighborhood — click a place or select one of the five routes.</p>
+  </header>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="map-wrap">
+        <div class="map-shell">
+          <svg id="neighborhoodMap" viewBox="0 0 1000 700" role="img" aria-label="Interactive fictional neighborhood map with streets, twelve places, landmarks and five routes.">
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"></path>
+              </marker>
+            </defs>
+
+            <rect width="1000" height="700" fill="#eaf6e7"/>
+
+            <!-- Roads -->
+            <rect class="road" x="0" y="135" width="1000" height="70"/>
+            <rect class="road" x="0" y="325" width="1000" height="70"/>
+            <rect class="road" x="0" y="515" width="1000" height="70"/>
+            <rect class="road" x="215" y="0" width="70" height="700"/>
+            <rect class="road" x="465" y="0" width="70" height="700"/>
+            <rect class="road" x="715" y="0" width="70" height="700"/>
+
+            <!-- Lane lines -->
+            <line class="lane" x1="0" y1="170" x2="1000" y2="170"/>
+            <line class="lane" x1="0" y1="360" x2="1000" y2="360"/>
+            <line class="lane" x1="0" y1="550" x2="1000" y2="550"/>
+            <line class="lane" x1="250" y1="0" x2="250" y2="700"/>
+            <line class="lane" x1="500" y1="0" x2="500" y2="700"/>
+            <line class="lane" x1="750" y1="0" x2="750" y2="700"/>
+
+            <!-- Street names -->
+            <text class="street-label" x="22" y="161">Oak Street</text>
+            <text class="street-label" x="22" y="351">Pine Street</text>
+            <text class="street-label" x="22" y="541">River Street</text>
+            <text class="street-label" x="236" y="675" transform="rotate(-90 236 675)">Maple Avenue</text>
+            <text class="street-label" x="486" y="675" transform="rotate(-90 486 675)">Central Avenue</text>
+            <text class="street-label" x="736" y="675" transform="rotate(-90 736 675)">Lake Avenue</text>
+
+            <!-- Landmarks -->
+            <g aria-label="Traffic light at Oak Street and Central Avenue">
+              <rect x="490" y="145" width="20" height="46" rx="5" fill="#1f2937"/>
+              <circle cx="500" cy="154" r="4" fill="#ef4444"/>
+              <circle cx="500" cy="168" r="4" fill="#facc15"/>
+              <circle cx="500" cy="182" r="4" fill="#22c55e"/>
+              <text class="landmark-label" x="517" y="198">Traffic light</text>
+            </g>
+
+            <g aria-label="Crosswalk at Pine Street and Maple Avenue">
+              <rect x="225" y="342" width="50" height="7" fill="#fff"/>
+              <rect x="225" y="354" width="50" height="7" fill="#fff"/>
+              <rect x="225" y="366" width="50" height="7" fill="#fff"/>
+              <text class="landmark-label" x="290" y="385">Crosswalk</text>
+            </g>
+
+            <g aria-label="Roundabout at Pine Street and Lake Avenue">
+              <circle cx="750" cy="360" r="24" fill="#94a3b8" stroke="#fff" stroke-width="5"/>
+              <circle cx="750" cy="360" r="10" fill="#d8f3dc"/>
+              <text class="landmark-label" x="785" y="386">Roundabout</text>
+            </g>
+
+            <!-- Buildings: top row -->
+            <g class="building" data-place="Gym" tabindex="0" role="button" aria-label="Gym">
+              <rect x="55" y="45" width="125" height="70"/>
+              <text x="117" y="87">GYM</text>
+            </g>
+            <g class="building" data-place="School" tabindex="0" role="button" aria-label="School">
+              <rect x="305" y="45" width="125" height="70"/>
+              <text x="367" y="87">SCHOOL</text>
+            </g>
+            <g class="building" data-place="Bank" tabindex="0" role="button" aria-label="Bank">
+              <rect x="555" y="45" width="125" height="70"/>
+              <text x="617" y="87">BANK</text>
+            </g>
+            <g class="building" data-place="Café" tabindex="0" role="button" aria-label="Café">
+              <rect x="805" y="45" width="125" height="70"/>
+              <text x="867" y="87">CAFÉ</text>
+            </g>
+
+            <!-- Middle row -->
+            <g class="building" data-place="Police Station" tabindex="0" role="button" aria-label="Police Station">
+              <rect x="55" y="225" width="125" height="70"/>
+              <text x="117" y="257">POLICE</text>
+              <text x="117" y="276">STATION</text>
+            </g>
+            <g class="building" data-place="Supermarket" tabindex="0" role="button" aria-label="Supermarket">
+              <rect x="305" y="225" width="125" height="70"/>
+              <text x="367" y="267">SUPERMARKET</text>
+            </g>
+            <g class="building" data-place="Pharmacy" tabindex="0" role="button" aria-label="Pharmacy">
+              <rect x="555" y="225" width="125" height="70"/>
+              <text x="617" y="267">PHARMACY</text>
+            </g>
+            <g class="building park" data-place="Park" tabindex="0" role="button" aria-label="Park">
+              <rect x="805" y="218" width="135" height="84"/>
+              <circle cx="835" cy="245" r="12" fill="#67b875"/>
+              <circle cx="905" cy="258" r="14" fill="#67b875"/>
+              <text x="872" y="285">PARK</text>
+            </g>
+
+            <!-- Lower-middle row -->
+            <g class="building home" data-place="Home" tabindex="0" role="button" aria-label="Home">
+              <rect x="55" y="415" width="125" height="70"/>
+              <text x="117" y="457">HOME</text>
+            </g>
+            <g class="building" data-place="Library" tabindex="0" role="button" aria-label="Library">
+              <rect x="305" y="415" width="125" height="70"/>
+              <text x="367" y="457">LIBRARY</text>
+            </g>
+            <g class="building" data-place="Hospital" tabindex="0" role="button" aria-label="Hospital">
+              <rect x="555" y="415" width="125" height="70"/>
+              <text x="617" y="457">HOSPITAL</text>
+            </g>
+            <g class="building" data-place="Store" tabindex="0" role="button" aria-label="Store">
+              <rect x="805" y="415" width="125" height="70"/>
+              <text x="867" y="457">STORE</text>
+            </g>
+
+            <!-- Compass -->
+            <g transform="translate(890 615)" aria-label="Compass showing north, south, east and west">
+              <circle r="55" fill="rgba(255,255,255,.88)" stroke="#64748b" stroke-width="2"/>
+              <path d="M0,-42 L10,-5 L0,-12 L-10,-5 Z" fill="#1d4ed8"/>
+              <path d="M0,42 L8,8 L0,14 L-8,8 Z" fill="#94a3b8"/>
+              <line x1="-38" y1="0" x2="38" y2="0" stroke="#64748b" stroke-width="2"/>
+              <text x="-5" y="-46" font-size="14" font-weight="800">N</text>
+              <text x="-5" y="55" font-size="14" font-weight="800">S</text>
+              <text x="43" y="5" font-size="14" font-weight="800">E</text>
+              <text x="-53" y="5" font-size="14" font-weight="800">W</text>
+            </g>
+
+            <!-- Dynamic route -->
+            <polyline id="routeLine" class="route-line" points="" marker-end="url(#arrow)" aria-hidden="true"></polyline>
+            <circle id="routeStart" class="route-dot" cx="-50" cy="-50" r="9"></circle>
+            <circle id="routeEnd" class="route-dot" cx="-50" cy="-50" r="9"></circle>
+          </svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="swatch sw-building"></i> Place</span>
+        <span><i class="swatch sw-park"></i> Park</span>
+        <span><i class="swatch sw-route"></i> Selected route</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel section">
+        <h2>Choose a destination</h2>
+        <p>Select a route to highlight it on the map and read the directions.</p>
+        <div class="routes">
+          <button class="route-btn active" type="button" data-route="supermarket">1. Home → Supermarket</button>
+          <button class="route-btn" type="button" data-route="library">2. Home → Library</button>
+          <button class="route-btn" type="button" data-route="hospital">3. Home → Hospital</button>
+          <button class="route-btn" type="button" data-route="park">4. Home → Park</button>
+          <button class="route-btn" type="button" data-route="cafe">5. Home → Café</button>
+        </div>
+      </section>
+
+      <section class="panel section" aria-live="polite">
+        <div class="route-title"><span class="badge" id="routeNumber">1</span><span id="routeName">Home to the Supermarket</span></div>
+        <p class="route-text" id="routeText"></p>
+        <div class="place-card">
+          <strong id="placeName">Supermarket</strong>
+          <span id="placeInfo">The supermarket is south of Oak Street, between Maple Avenue and Central Avenue.</span>
+        </div>
+      </section>
+
+      <section class="panel section">
+        <h2>Oral route</h2>
+        <p>Use one of the five written routes for your recording. The supermarket route is a good option because it uses several direction expressions.</p>
+        <div class="audio-box">
+          <audio id="audioPlayer" controls preload="metadata">
+            <source src="audio-route.mp3" type="audio/mpeg">
+            Your browser does not support audio playback.
+          </audio>
+          <label class="file-label">
+            Preview your audio file
+            <input id="audioFile" type="file" accept="audio/*">
+          </label>
+          <p class="note">For the final hosted version, place your recording in the same folder as this HTML file and name it <strong>audio-route.mp3</strong>, or replace the filename in the audio tag.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="panel neighborhood">
+    <h2>My Neighborhood</h2>
+    <p>
+      My neighborhood is a quiet and friendly place with many useful locations. There is a supermarket near Maple Avenue and a pharmacy near Central Avenue. The library and the hospital are south of Pine Street, while the park is east of Lake Avenue. There is also a school, a bank, a café, a gym, a police station, and a store. I like my neighborhood because most places are close to my home and easy to reach on foot.
+    </p>
+  </section>
+
+  <footer>Interactive academic prototype — fictional neighborhood designed for practicing places, prepositions and directions in English.</footer>
+</div>
+
+<script>
+const routes = {
+  supermarket: {
+    number: 1,
+    name: "Home to the Supermarket",
+    destination: "Supermarket",
+    info: "The supermarket is south of Oak Street, between Maple Avenue and Central Avenue.",
+    text: "Start at my home. Walk north to Pine Street and turn right. Continue to Maple Avenue and turn left. Go straight until Oak Street, then turn right. The supermarket is on your right, just before Central Avenue. It is about six minutes on foot.",
+    points: [[118,415],[118,360],[250,360],[250,170],[367,170],[367,225]]
+  },
+  library: {
+    number: 2,
+    name: "Home to the Library",
+    destination: "Library",
+    info: "The library is south of Pine Street, between Maple Avenue and Central Avenue.",
+    text: "Start at my home and walk north to Pine Street. Turn right and go straight. Cross Maple Avenue at the crosswalk. Continue along Pine Street. The library is on your right, between Maple Avenue and Central Avenue. It is about four minutes on foot.",
+    points: [[118,415],[118,360],[250,360],[367,360],[367,415]]
+  },
+  hospital: {
+    number: 3,
+    name: "Home to the Hospital",
+    destination: "Hospital",
+    info: "The hospital is south of Pine Street, between Central Avenue and Lake Avenue.",
+    text: "Start at my home. Walk north to Pine Street and turn right. Go straight, cross Maple Avenue, and continue past Central Avenue. The hospital is on your right before Lake Avenue. It is about seven minutes on foot.",
+    points: [[118,415],[118,360],[250,360],[500,360],[617,360],[617,415]]
+  },
+  park: {
+    number: 4,
+    name: "Home to the Park",
+    destination: "Park",
+    info: "The park is east of Lake Avenue, between Oak Street and Pine Street.",
+    text: "Start at my home. Walk north to Pine Street and turn right. Continue straight until the roundabout at Lake Avenue. Turn left and go north along Lake Avenue. The park is on your right before Oak Street. It is about nine minutes on foot.",
+    points: [[118,415],[118,360],[250,360],[500,360],[750,360],[750,260],[805,260]]
+  },
+  cafe: {
+    number: 5,
+    name: "Home to the Café",
+    destination: "Café",
+    info: "The café is north of Oak Street and east of Lake Avenue.",
+    text: "Start at my home. Walk north to Pine Street and turn right. Continue straight to the roundabout at Lake Avenue and turn left. Go north, cross Oak Street, and continue straight. The café is on your right, north of Oak Street. It is about ten minutes on foot.",
+    points: [[118,415],[118,360],[250,360],[500,360],[750,360],[750,170],[750,80],[805,80]]
+  }
+};
+
+const placeDescriptions = {
+  "Home": "My home is west of Maple Avenue and south of Pine Street.",
+  "Gym": "The gym is north of Oak Street and west of Maple Avenue.",
+  "School": "The school is north of Oak Street, between Maple Avenue and Central Avenue.",
+  "Bank": "The bank is north of Oak Street, between Central Avenue and Lake Avenue.",
+  "Café": "The café is north of Oak Street and east of Lake Avenue.",
+  "Police Station": "The police station is west of Maple Avenue, between Oak Street and Pine Street.",
+  "Supermarket": "The supermarket is south of Oak Street, between Maple Avenue and Central Avenue.",
+  "Pharmacy": "The pharmacy is south of Oak Street, between Central Avenue and Lake Avenue.",
+  "Park": "The park is east of Lake Avenue, between Oak Street and Pine Street.",
+  "Library": "The library is south of Pine Street, between Maple Avenue and Central Avenue.",
+  "Hospital": "The hospital is south of Pine Street, between Central Avenue and Lake Avenue.",
+  "Store": "The store is south of Pine Street and east of Lake Avenue."
+};
+
+const routeLine = document.getElementById("routeLine");
+const routeStart = document.getElementById("routeStart");
+const routeEnd = document.getElementById("routeEnd");
+const routeNumber = document.getElementById("routeNumber");
+const routeName = document.getElementById("routeName");
+const routeText = document.getElementById("routeText");
+const placeName = document.getElementById("placeName");
+const placeInfo = document.getElementById("placeInfo");
+
+function showRoute(key){
+  const route = routes[key];
+  const pointString = route.points.map(([x,y]) => `${x},${y}`).join(" ");
+  routeLine.setAttribute("points", pointString);
+  const start = route.points[0];
+  const end = route.points[route.points.length - 1];
+  routeStart.setAttribute("cx", start[0]);
+  routeStart.setAttribute("cy", start[1]);
+  routeEnd.setAttribute("cx", end[0]);
+  routeEnd.setAttribute("cy", end[1]);
+
+  routeNumber.textContent = route.number;
+  routeName.textContent = route.name;
+  routeText.textContent = route.text;
+  placeName.textContent = route.destination;
+  placeInfo.textContent = route.info;
+
+  document.querySelectorAll(".route-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.route === key);
+  });
+}
+
+document.querySelectorAll(".route-btn").forEach(btn => {
+  btn.addEventListener("click", () => showRoute(btn.dataset.route));
+});
+
+document.querySelectorAll(".building").forEach(place => {
+  const activate = () => {
+    const name = place.dataset.place;
+    placeName.textContent = name;
+    placeInfo.textContent = placeDescriptions[name];
+  };
+  place.addEventListener("click", activate);
+  place.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){
+      e.preventDefault();
+      activate();
+    }
+  });
+});
+
+const audioFile = document.getElementById("audioFile");
+const audioPlayer = document.getElementById("audioPlayer");
+let localAudioUrl = null;
+audioFile.addEventListener("change", () => {
+  const file = audioFile.files && audioFile.files[0];
+  if(!file) return;
+  if(localAudioUrl) URL.revokeObjectURL(localAudioUrl);
+  localAudioUrl = URL.createObjectURL(file);
+  audioPlayer.src = localAudioUrl;
+  audioPlayer.play().catch(() => {});
+});
+
+showRoute("supermarket");
+</script>
+</body>
+</html>
