@@ -170,6 +170,17 @@
   }
   .file-label input{display:none}
   .note{font-size:.88rem!important}
+  .transcript{
+    margin-top:12px!important;
+    padding:12px;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:#475569!important;
+    font-size:.9rem;
+  }
+  .transcript summary{cursor:pointer;font-weight:800;color:var(--ink)}
+  .transcript p{margin:10px 0 0!important;color:#475569!important}
   .neighborhood{
     margin-top:18px;
     padding:18px;
@@ -373,18 +384,22 @@
 
       <section class="panel section">
         <h2>Oral route</h2>
-        <p>Use one of the five written routes for your recording. The supermarket route is a good option because it uses several direction expressions.</p>
+        <p>Listen to the recorded directions from Home to the Supermarket.</p>
         <div class="audio-box">
           <audio id="audioPlayer" controls preload="metadata">
             <source src="audio-route.mp3" type="audio/mpeg">
             Your browser does not support audio playback.
           </audio>
-          <label class="file-label">
-            Preview your audio file
-            <input id="audioFile" type="file" accept="audio/*">
-          </label>
-          <p class="note">For the final hosted version, place your recording in the same folder as this HTML file and name it <strong>audio-route.mp3</strong>, or replace the filename in the audio tag.</p>
         </div>
+        <details class="transcript">
+          <summary>Read the audio transcript</summary>
+          <p>Hello! Today I am going to explain how to get from my home to the supermarket.</p>
+          <p>First, start at my home and walk north until you reach Pine Street. Then, turn right and continue straight until you get to Maple Avenue.</p>
+          <p>At Maple Avenue, turn left and go straight until you reach Oak Street. Next, turn right and continue along Oak Street.</p>
+          <p>The supermarket is on your right, just before Central Avenue. It is between Maple Avenue and Central Avenue.</p>
+          <p>The route takes about six minutes on foot, and it is very easy to follow.</p>
+          <p>Thank you!</p>
+        </details>
       </section>
     </aside>
   </div>
@@ -506,18 +521,6 @@ document.querySelectorAll(".building").forEach(place => {
       activate();
     }
   });
-});
-
-const audioFile = document.getElementById("audioFile");
-const audioPlayer = document.getElementById("audioPlayer");
-let localAudioUrl = null;
-audioFile.addEventListener("change", () => {
-  const file = audioFile.files && audioFile.files[0];
-  if(!file) return;
-  if(localAudioUrl) URL.revokeObjectURL(localAudioUrl);
-  localAudioUrl = URL.createObjectURL(file);
-  audioPlayer.src = localAudioUrl;
-  audioPlayer.play().catch(() => {});
 });
 
 showRoute("supermarket");
